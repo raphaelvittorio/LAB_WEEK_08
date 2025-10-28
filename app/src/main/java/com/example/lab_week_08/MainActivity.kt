@@ -17,6 +17,7 @@ import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
 import com.example.lab_week_08.worker.FirstWorker
 import com.example.lab_week_08.worker.SecondWorker
+import com.example.lab_week_08.worker.ThirdWorker
 
 class MainActivity: AppCompatActivity() {
     private val workManager by lazy {
@@ -46,29 +47,37 @@ class MainActivity: AppCompatActivity() {
             .setRequiredNetworkType (NetworkType.CONNECTED)
             .build()
 
-        val id = "001"
+        val id1 = "001"
+        val id2 = "002"
 
         val firstRequest = OneTimeWorkRequest
             .Builder(FirstWorker::class.java)
             .setConstraints (networkConstraints)
             .setInputData(getIdInputData(FirstWorker
-                .INPUT_DATA_ID, id)
+                .INPUT_DATA_ID, id1)
             ).build()
 
         val secondRequest = OneTimeWorkRequest
             .Builder(SecondWorker::class.java)
             .setConstraints (networkConstraints)
             .setInputData(getIdInputData (SecondWorker
-                .INPUT_DATA_ID, id)
+                .INPUT_DATA_ID, id1)
+            ).build()
+
+        val thirdRequest = OneTimeWorkRequest
+            .Builder(ThirdWorker::class.java)
+            .setConstraints (networkConstraints)
+            .setInputData(getIdInputData (ThirdWorker
+                .INPUT_DATA_ID, id2)
             ).build()
 
         workManager.beginWith (firstRequest)
             .then(secondRequest)
+            .then(thirdRequest)
             .enqueue()
 
         workManager.getWorkInfoByIdLiveData(firstRequest.id)
             .observe(this) { info ->
-                // Use the safe call operator ?.
                 if (info?.state?.isFinished == true) {
                     showResult("First process is done")
                 }
@@ -76,13 +85,19 @@ class MainActivity: AppCompatActivity() {
 
         workManager.getWorkInfoByIdLiveData (secondRequest.id)
             .observe(this) { info ->
-                // Use the safe call operator ?. here as well
                 if (info?.state?.isFinished == true) {
                     showResult("Second process is done")
                     launchNotificationService()
                 }
             }
 
+        workManager.getWorkInfoByIdLiveData (thirdRequest.id)
+            .observe(this) { info ->
+                if (info?.state?.isFinished == true) {
+                    showResult("Third process is done")
+                    launchSecondNotificationService()
+                }
+            }
     }
 
     private fun getIdInputData(idKey: String, idValue: String) =
@@ -102,6 +117,18 @@ class MainActivity: AppCompatActivity() {
         val serviceIntent = Intent(this,
             NotificationService::class.java).apply {
             putExtra(EXTRA_ID, "001")
+        }
+        ContextCompat.startForegroundService(this, serviceIntent)
+    }
+
+    private fun launchSecondNotificationService() {
+        SecondNotificationService.trackingCompletion.observe(
+            this) { id ->
+            showResult("Process for Notification Channel ID $id is done!")
+        }
+        val serviceIntent = Intent(this,
+            SecondNotificationService::class.java).apply {
+            putExtra(EXTRA_ID, "002")
         }
         ContextCompat.startForegroundService(this, serviceIntent)
     }
